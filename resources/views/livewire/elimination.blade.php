@@ -33,7 +33,7 @@
         }, delay);
      ">
 
-    <h1 class="text-4xl font-bold mb-6 text-red-600">Roulette - Mode : <span class="uppercase">RUSSE - AUTO</span></h1>
+    <h1 class="text-4xl font-bold mb-6 text-red-600">Roulette - Mode : <span class="uppercase">Élimintation</span></h1>
 
     {{-- Affichage des messages via Alpine.js/Dispatch --}}
     <div x-show="message"
@@ -138,7 +138,7 @@
         {{-- COLONNE 2 : HISTORIQUE D'ÉLIMINATION (DROITE) --}}
         <div>
             <h2 class="text-2xl font-semibold mb-4 text-gray-700">Historique des Éliminés</h2>
-            <x-russian-history :eliminated="$eliminated" />
+            <x-elimination-history :eliminated="$eliminated" />
         </div>
     </div>
     {{-- ⬇️ FIN DES LISTES ⬇️ --}}

@@ -7,15 +7,15 @@ use Livewire\Component;
 use Livewire\Attributes\Layout;
 use App\Livewire\Traits\ManagesParticipants;
 use App\Livewire\Traits\ManagesRouletteState;
-use App\Services\Roulette\RussianRoulette;
+use App\Services\Roulette\EliminationRoulette;
 use Illuminate\Support\Collection;
 
 #[Layout('layouts.app')]
-class RussianRouletteComponent extends Component
+class EliminationRouletteComponent extends Component
 {
     use ManagesRouletteState, ManagesParticipants;
 
-    protected ?RussianRoulette $strategy = null;
+    protected ?EliminationRoulette $strategy = null;
 
     public ?string $winner = null;
 
@@ -28,20 +28,20 @@ class RussianRouletteComponent extends Component
     {
         $this->initializeRouletteState();
         $this->initializeParticipants();
-        $this->strategy ??= new RussianRoulette();
+        $this->strategy ??= new EliminationRoulette();
         $this->gameStarted = false;
     }
 
     protected function planSpin(): ?string
     {
-        $this->strategy ??= new RussianRoulette();
+        $this->strategy ??= new EliminationRoulette();
         return $this->strategy->spin(collect($this->candidates));
     }
 
     protected function executeSpinStrategy(): ?string
     {
         $eliminatedCandidate = $this->plannedChosenOne;
-        $this->strategy ??= new RussianRoulette();
+        $this->strategy ??= new EliminationRoulette();
 
         if ($eliminatedCandidate && $this->strategy->shouldEliminate()) {
             $this->candidates = array_values(array_filter($this->candidates, fn($c) => $c !== $eliminatedCandidate));
@@ -156,7 +156,7 @@ class RussianRouletteComponent extends Component
 
     public function render()
     {
-        return view('livewire.russian', [
+        return view('livewire.elimination', [
             'winner'     => $this->winner,
             'candidates' => $this->candidates,
             'isSpinning' => $this->isSpinning,

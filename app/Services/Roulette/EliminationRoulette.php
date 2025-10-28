@@ -4,7 +4,7 @@ namespace App\Services\Roulette;
 
 use Illuminate\Support\Collection;
 
-class RussianRoulette implements RouletteStrategy
+class EliminationRoulette implements RouletteStrategy
 {
     /**
      * @inheritDoc

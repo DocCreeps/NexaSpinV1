@@ -1,9 +1,9 @@
 <?php
 
-use App\Livewire\RussianRouletteComponent;
+use App\Livewire\EliminationRouletteComponent;
 use Livewire\Livewire;
 
 it('renders successfully', function () {
-    Livewire::test(RussianRouletteComponent::class)
+    Livewire::test(EliminationRouletteComponent::class)
         ->assertStatus(200);
 });
