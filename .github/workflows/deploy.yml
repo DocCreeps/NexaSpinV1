@@ -25,10 +25,10 @@ jobs:
 
       - name: Deploy to VPS
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << EOF
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
           # Vérifier et ajuster les permissions du répertoire parent
-          sudo chown -R ${{ secrets.SSH_USER }}:${{ secrets.SSH_USER }} /var/www/html/Roulette_Lara
-          sudo chmod -R 755 /var/www/html/Roulette_Lara
+          sudo chown -R ${{ secrets.SSH_USER }}:${{ secrets.SSH_USER }} /var/www/html
+          sudo chmod -R 755 /var/www/html
 
           # Créer le répertoire de destination s'il n'existe pas
           if [ ! -d /var/www/html/Roulette_Lara ]; then
