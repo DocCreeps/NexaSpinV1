@@ -25,21 +25,19 @@ jobs:
 
       - name: Deploy to VPS
         run: |
-
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << EOF
-
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
           # Vérifier et ajuster les permissions du répertoire parent
           sudo chown -R ${{ secrets.SSH_USER }}:${{ secrets.SSH_USER }} /var/www/html/Roulette_Lara
           sudo chmod -R 755 /var/www/html/Roulette_Lara
 
           # Créer le répertoire de destination s'il n'existe pas
-          if [ ! -d /var/www/html/Roulette ]; then
+          if [ ! -d /var/www/html/Roulette_Lara ]; then
               git clone git@github.com:DocCreeps/Roulette_Lara.git /var/www/html/Roulette_Lara
           fi
 
           cd /var/www/html/Roulette_Lara
 
-          # Créer un répertoire temporaire pour la sauvegarde dans /var/www/html
+          # Créer un répertoire temporaire pour la sauvegarde dans /var/www/html/Roulette_Lara
           TEMP_DIR=/var/www/html/temp_backup
           mkdir -p $TEMP_DIR
 
