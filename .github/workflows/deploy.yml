@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 env:
-  PHP_VERSION: '8.x'  # set this to the PHP version to use
+  PHP_VERSION: '8.x'
 
 permissions:
   contents: read
@@ -25,81 +25,75 @@ jobs:
 
       - name: Deploy to VPS
         run: |
-
           ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << EOF
-          whoami
-          pwd
-          ls -la
+            set -e
 
-          # Vérifier et ajuster les permissions du répertoire parent
-          sudo chown -R ${{ secrets.SSH_USER }}:${{ secrets.SSH_USER }} /var/www/html/Roulette_Lara
-          sudo chmod -R 755 /var/www/html/Roulette_Lara
+            # Variables
+            APP_DIR="/var/www/html/Roulette_Lara"
+            TEMP_DIR="/var/www/html/temp_backup"
 
-          # Créer le répertoire de destination s'il n'existe pas
-          if [ ! -d /var/www/html/Roulette ]; then
-              git clone git@github.com:DocCreeps/Roulette_Lara.git /var/www/html/Roulette_Lara
-          fi
+            # Debug
+            echo "Connected as: \$(whoami)"
+            echo "Working directory: \$(pwd)"
 
-          cd /var/www/html/Roulette_Lara
+            # Créer le répertoire si nécessaire
+            if [ ! -d "\$APP_DIR" ]; then
+              git clone git@github.com:DocCreeps/Roulette_Lara.git "\$APP_DIR"
+            fi
 
-          # Créer un répertoire temporaire pour la sauvegarde dans /var/www/html
-          TEMP_DIR=/var/www/html/temp_backup
-          mkdir -p $TEMP_DIR
+            cd "\$APP_DIR"
 
-          # Sauvegarder le fichier .env dans le répertoire temporaire
-          if [ -f .env ]; then
-              cp .env $TEMP_DIR/.env.backup
-          fi
+            # Ajuster les permissions pour l'utilisateur SSH avant git pull
+            sudo chown -R ${{ secrets.SSH_USER }}:${{ secrets.SSH_USER }} "\$APP_DIR"
+            sudo chmod -R 755 "\$APP_DIR"
 
-          # Réinitialiser les modifications locales
-          git reset --hard origin/master
+            # Vérifier si c'est un dépôt Git
+            if [ -d ".git" ]; then
+              git fetch origin
+              git reset --hard origin/master
+            else
+              git clone git@github.com:DocCreeps/Roulette_Lara.git "\$APP_DIR"
+            fi
 
-          # Mettre à jour le dépôt
-          git pull origin master
+            # Backup du .env
+            mkdir -p "\$TEMP_DIR"
+            if [ -f .env ]; then
+              cp .env "\$TEMP_DIR/.env.backup"
+            fi
 
-          # Restaurer le fichier .env depuis le répertoire temporaire
-          if [ -f $TEMP_DIR/.env.backup ]; then
-              cp $TEMP_DIR/.env.backup .env
-          fi
+            # Restaurer le .env après git pull
+            if [ -f "\$TEMP_DIR/.env.backup" ]; then
+              cp "\$TEMP_DIR/.env.backup" .env
+            fi
 
-          # Supprimer le répertoire temporaire
-          rm -rf $TEMP_DIR
+            rm -rf "\$TEMP_DIR"
 
-
-          # Vérifier et exécuter Composer
-          if [ -f composer.json ]; then
+            # Installer Composer
+            if [ -f composer.json ]; then
               composer install --no-interaction --prefer-dist --optimize-autoloader
-          else
-              echo "Le fichier composer.json n'existe pas."
-              exit 1
-          fi
+            fi
 
-          # Vérifier et exécuter npm
-          if [ -f package.json ]; then
+            # Installer npm
+            if [ -f package.json ]; then
               npm install
               npm run prod
-          else
-              echo "Le fichier package.json n'existe pas."
-              exit 1
-          fi
+            fi
 
-          # Vérifier et copier .env.example
-          if [ ! -f .env ]; then
+            # Générer .env si absent
+            if [ ! -f .env ]; then
               if [ -f .env.example ]; then
-                  cp .env.example .env
-                  php artisan key:generate
-              else
-                  echo "Le fichier .env.example n'existe pas."
-                  exit 1
+                cp .env.example .env
+                php artisan key:generate
               fi
-          fi
+            fi
 
-          php artisan config:cache
-          php artisan route:cache
-          php artisan view:cache
-          npm run production
-           # Définir les permissions appropriées pour www-data
-          sudo chown -R www-data:www-data /var/www/html/Roulette_Lara
+            # Cacher config, routes, views
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
 
-          echo "Deployment successful"
+            # Permissions finales pour www-data
+            sudo chown -R www-data:www-data "\$APP_DIR"
+
+            echo "Deployment successful"
           EOF
