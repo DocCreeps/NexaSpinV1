@@ -65,17 +65,7 @@
         </div>
     </div>
 
-    {{-- Affichage du gagnant --}}
-    @if($chosenOne)
-        <div class="text-center p-8 bg-green-100 rounded-xl shadow-lg mt-8">
-            <h2 class="text-4xl font-extrabold text-green-700 animate-pulse">
-                🏆 LE GAGNANT EST : {{ $chosenOne }} ! 🏆
-            </h2>
-            <button wire:click="resetGame"
-                    class="mt-4 px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600">
-                Recommencer une partie
-            </button>
-        </div>
-    @endif
+    <livewire:win-modal />
+
 
 </div>

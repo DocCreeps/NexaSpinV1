@@ -80,6 +80,7 @@ class ClassicRouletteComponent extends Component
 
         // 🚀 L'état de blocage est activé à la fin de l'animation
         $this->winnerAnnounced = true;
+        $this->dispatch('show-winner', $this->chosenOne);
     }
 
 

@@ -70,12 +70,12 @@
                  ">
 
                 <span style="
-                    transform:
-                        rotate(-{{ $angle }}deg)
-                        translateX(-50%);
-                 ">
-                    {{ $name }}
-                </span>
+    transform: rotate(90deg) translateX(-50%);
+    transform-origin: center;
+">
+    {{ $name }}
+</span>
+
             </div>
         @endforeach
     </div>
