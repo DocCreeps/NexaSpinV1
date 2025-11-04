@@ -28,55 +28,55 @@ jobs:
           echo "Creating deploy script..."
           cat > deploy.sh << 'DEPLOY'
       #!/bin/bash
-      set -e
+          set -e
 
-      APP_DIR="/var/www/html/Roulette_Lara"
-      TEMP_DIR="/var/www/html/temp_backup"
+          APP_DIR="/var/www/html/Roulette_Lara"
+          TEMP_DIR="/var/www/html/temp_backup"
 
-      echo "Connected as $(whoami)"
-      echo "Working directory $(pwd)"
+          echo "Connected as $(whoami)"
+          echo "Working directory $(pwd)"
 
-      # Créer le répertoire si nécessaire
-      if [ ! -d "$APP_DIR" ]; then
-      git clone git@github.com:DocCreeps/Roulette_Lara.git "$APP_DIR"
-      fi
+          # Créer le répertoire si nécessaire
+          if [ ! -d "$APP_DIR" ]; then
+          git clone git@github.com:DocCreeps/Roulette_Lara.git "$APP_DIR"
+          fi
 
-      cd "$APP_DIR"
+          cd "$APP_DIR"
 
-      # Permissions SSH user
-      sudo chown -R $USER:$USER "$APP_DIR"
-      sudo chmod -R 755 "$APP_DIR"
+          # Permissions SSH user
+          sudo chown -R $USER:$USER "$APP_DIR"
+          sudo chmod -R 755 "$APP_DIR"
 
-      # Vérifier dépôt Git
-      if [ -d ".git" ]; then
-      git fetch origin
-      git reset --hard origin/master
-      git pull origin master
-      fi
+          # Vérifier dépôt Git
+          if [ -d ".git" ]; then
+          git fetch origin
+          git reset --hard origin/master
+          git pull origin master
+          fi
 
-      # Backup et restauration .env
-      mkdir -p "$TEMP_DIR"
-      [ -f .env ] && cp .env "$TEMP_DIR/.env.backup"
-      [ -f "$TEMP_DIR/.env.backup" ] && cp "$TEMP_DIR/.env.backup" .env
-      rm -rf "$TEMP_DIR"
+          # Backup et restauration .env
+          mkdir -p "$TEMP_DIR"
+          [ -f .env ] && cp .env "$TEMP_DIR/.env.backup"
+          [ -f "$TEMP_DIR/.env.backup" ] && cp "$TEMP_DIR/.env.backup" .env
+          rm -rf "$TEMP_DIR"
 
-      # Composer / npm
-      [ -f composer.json ] && composer install --no-interaction --prefer-dist --optimize-autoloader
-      [ -f package.json ] && npm install && npm run prod
+          # Composer / npm
+          [ -f composer.json ] && composer install --no-interaction --prefer-dist --optimize-autoloader
+          [ -f package.json ] && npm install && npm run prod
 
-      # .env si absent
-      [ ! -f .env ] && [ -f .env.example ] && cp .env.example .env && php artisan key:generate
+          # .env si absent
+          [ ! -f .env ] && [ -f .env.example ] && cp .env.example .env && php artisan key:generate
 
-      # Cache config/routes/views
-      php artisan config:cache
-      php artisan route:cache
-      php artisan view:cache
+          # Cache config/routes/views
+          php artisan config:cache
+          php artisan route:cache
+          php artisan view:cache
 
-      # Permissions www-data
-      sudo chown -R www-data:www-data "$APP_DIR"
+          # Permissions www-data
+          sudo chown -R www-data:www-data "$APP_DIR"
 
-      echo "Deployment successful"
-      DEPLOY
+          echo "Deployment successful"
+          DEPLOY
 
-      ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} 'bash -s' < deploy.sh
-      
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} 'bash -s' < deploy.sh
+
