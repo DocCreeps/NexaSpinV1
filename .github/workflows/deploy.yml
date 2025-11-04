@@ -35,7 +35,7 @@ jobs:
               git clone git@github.com:DocCreeps/Roulette_Lara.git /var/www/html/Roulette_Lara
           fi
 
-          cd /var/www/html/Roulette
+          cd /var/www/html/Roulette_Lara
 
           # Créer un répertoire temporaire pour la sauvegarde dans /var/www/html
           TEMP_DIR=/var/www/html/temp_backup
