@@ -25,7 +25,12 @@ jobs:
 
       - name: Deploy to VPS
         run: |
+
           ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << EOF
+          whoami
+          pwd
+          ls -la
+
           # Vérifier et ajuster les permissions du répertoire parent
           sudo chown -R ${{ secrets.SSH_USER }}:${{ secrets.SSH_USER }} /var/www/html/Roulette_Lara
           sudo chmod -R 755 /var/www/html/Roulette_Lara
@@ -48,11 +53,6 @@ jobs:
 
           # Réinitialiser les modifications locales
           git reset --hard origin/master
-
-          whoami
-          ls -la /var/www/html/Roulette_Lara | head -n 5
-          git remote -v
-          git status
 
           # Mettre à jour le dépôt
           git pull origin master
