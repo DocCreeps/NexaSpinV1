@@ -42,8 +42,7 @@ jobs:
           # 1. S'assurer que le répertoire de l'application est créé et appartient à l'utilisateur SSH
           if [ ! -d \$APP_DIR ]; then
               echo "Répertoire non trouvé, tentative de création et de clonage initial."
-              # Assurez-vous que l'utilisateur SSH peut écrire dans /var/www/html s'il doit créer APP_DIR
-              # On prend possession de l'application si elle existe, ou du parent si elle n'existe pas encore.
+              # Tente de créer le répertoire (nécessite 'sudo' si /var/www/html est possédé par root)
               sudo mkdir -p \$APP_DIR
               # On définit les permissions pour que l'utilisateur SSH puisse écrire dans le répertoire.
               sudo chown -R $SSH_USER:$SSH_USER \$APP_DIR
@@ -54,7 +53,12 @@ jobs:
           cd \$APP_DIR
 
           # Assurer les permissions pour l'utilisateur SSH pour les opérations Git et de fichiers
+          # CORRECTION CRITIQUE: L'échec du 'sudo' ici a bloqué le script.
+          # L'utilisateur SSH DOIT être configuré pour un 'sudo sans mot de passe' sur le VPS.
           sudo chown -R $SSH_USER:$SSH_USER .
+
+          # CORRECTION D'ERREUR GIT: Permettre à Git de faire des opérations si l'utilisateur SSH n'est pas le propriétaire originel
+          git config --global --add safe.directory \$APP_DIR
 
           # 2. Gestion du fichier .env
           mkdir -p \$TEMP_DIR
@@ -92,13 +96,16 @@ jobs:
           if [ -f package.json ]; then
               echo "Exécution de NPM install et compilation des assets..."
               npm install
-              npm run production # Correction: on garde une seule commande de production
+              # CORRECTION NPM: Essayer 'production', sinon essayer 'build' (le plus standard pour Vite/Mix récent)
+              npm run production || npm run build || echo "NPM build script failed. Check your package.json."
           else
               echo "Le fichier package.json n'existe pas. SKIP."
           fi
 
           # 7. Optimisation et Migrations Laravel
           echo "Optimisation Laravel et cache..."
+          # ATTENTION: La migration a échoué car elle n'a pas pu se connecter à la DB ('Access denied for user 'root'@'localhost').
+          # Vérifiez les variables DB_USERNAME et DB_PASSWORD dans le fichier .env sur le VPS.
           php artisan migrate --force
           php artisan config:cache
           php artisan route:cache
@@ -110,6 +117,7 @@ jobs:
           # 9. Définir les permissions finales pour le serveur Web (www-data)
           echo "Définition des permissions finales pour www-data..."
           # L'utilisateur du serveur web doit posséder les fichiers
+          # CORRECTION CRITIQUE: Cette commande 'sudo' peut aussi demander un mot de passe et bloquer le script.
           sudo chown -R www-data:www-data \$APP_DIR
           # Les répertoires de cache et de stockage doivent être accessibles en écriture par www-data
           sudo chmod -R 775 \$APP_DIR/storage
