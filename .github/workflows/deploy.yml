@@ -18,83 +18,102 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # 1. Configuration de la clé SSH
       - name: Set up SSH
         uses: webfactory/ssh-agent@v0.5.3
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
+      # 2. Déploiement via SSH
       - name: Deploy to VPS
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
-          # Vérifier et ajuster les permissions du répertoire parent
-          sudo chown -R ${{ secrets.SSH_USER }}:${{ secrets.SSH_USER }} /var/www/html
-          sudo chmod -R 755 /var/www/html
+          # --- Définition des variables sur le runner local pour le script SSH ---
+          SSH_USER=${{ secrets.SSH_USER }}
+          SSH_HOST=${{ secrets.SSH_HOST }}
 
-          # Créer le répertoire de destination s'il n'existe pas
-          if [ ! -d /var/www/html/Roulette_Lara ]; then
-              git clone git@github.com:DocCreeps/Roulette_Lara.git /var/www/html/Roulette_Lara
+          # --- Lancement de la connexion SSH et des commandes sur le VPS ---
+          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST << EOF
+
+          APP_DIR=/var/www/html/Roulette_Lara
+          TEMP_DIR=/tmp/laravel_backup_$$ # Utiliser /tmp pour un répertoire temporaire sûr
+
+          echo "Démarrage du déploiement sur \$APP_DIR"
+
+          # 1. S'assurer que le répertoire de l'application est créé et appartient à l'utilisateur SSH
+          if [ ! -d \$APP_DIR ]; then
+              echo "Répertoire non trouvé, tentative de création et de clonage initial."
+              # Assurez-vous que l'utilisateur SSH peut écrire dans /var/www/html s'il doit créer APP_DIR
+              # On prend possession de l'application si elle existe, ou du parent si elle n'existe pas encore.
+              sudo mkdir -p \$APP_DIR
+              # On définit les permissions pour que l'utilisateur SSH puisse écrire dans le répertoire.
+              sudo chown -R $SSH_USER:$SSH_USER \$APP_DIR
+              git clone git@github.com:DocCreeps/Roulette_Lara.git \$APP_DIR
           fi
 
-          cd /var/www/html/Roulette_Lara
+          # Entrer dans le répertoire de l'application
+          cd \$APP_DIR
 
-          # Créer un répertoire temporaire pour la sauvegarde dans /var/www/html/Roulette_Lara
-          TEMP_DIR=/var/www/html/temp_backup
-          mkdir -p $TEMP_DIR
+          # Assurer les permissions pour l'utilisateur SSH pour les opérations Git et de fichiers
+          sudo chown -R $SSH_USER:$SSH_USER .
 
-          # Sauvegarder le fichier .env dans le répertoire temporaire
+          # 2. Gestion du fichier .env
+          mkdir -p \$TEMP_DIR
           if [ -f .env ]; then
-              cp .env $TEMP_DIR/.env.backup
+              echo "Sauvegarde du fichier .env existant."
+              cp .env \$TEMP_DIR/.env.backup
           fi
 
-          # Réinitialiser les modifications locales
+          # 3. Pull des dernières modifications
+          echo "Mise à jour du dépôt Git..."
           git reset --hard origin/master
-
-          # Mettre à jour le dépôt
           git pull origin master
 
-          # Restaurer le fichier .env depuis le répertoire temporaire
-          if [ -f $TEMP_DIR/.env.backup ]; then
-              cp $TEMP_DIR/.env.backup .env
-          fi
-
-          # Supprimer le répertoire temporaire
-          rm -rf $TEMP_DIR
-
-
-          # Vérifier et exécuter Composer
-          if [ -f composer.json ]; then
-              composer install --no-interaction --prefer-dist --optimize-autoloader
-          else
-              echo "Le fichier composer.json n'existe pas."
-              exit 1
-          fi
-
-          # Vérifier et exécuter npm
-          if [ -f package.json ]; then
-              npm install
-              npm run prod
-          else
-              echo "Le fichier package.json n'existe pas."
-              exit 1
-          fi
-
-          # Vérifier et copier .env.example
-          if [ ! -f .env ]; then
+          # 4. Restauration/Création du .env (Doit être avant Composer/Artisan)
+          if [ -f \$TEMP_DIR/.env.backup ]; then
+              echo "Restauration du fichier .env sauvegardé."
+              mv \$TEMP_DIR/.env.backup .env
+          elif [ ! -f .env ]; then
               if [ -f .env.example ]; then
+                  echo "Création du .env à partir de .env.example."
                   cp .env.example .env
                   php artisan key:generate
-              else
-                  echo "Le fichier .env.example n'existe pas."
-                  exit 1
               fi
           fi
 
+          # 5. Dépendances PHP (Composer)
+          if [ -f composer.json ]; then
+              echo "Exécution de Composer install..."
+              composer install --no-interaction --prefer-dist --optimize-autoloader
+          else
+              echo "Le fichier composer.json n'existe pas. SKIP."
+          fi
+
+          # 6. Dépendances Frontend (NPM)
+          if [ -f package.json ]; then
+              echo "Exécution de NPM install et compilation des assets..."
+              npm install
+              npm run production # Correction: on garde une seule commande de production
+          else
+              echo "Le fichier package.json n'existe pas. SKIP."
+          fi
+
+          # 7. Optimisation et Migrations Laravel
+          echo "Optimisation Laravel et cache..."
+          php artisan migrate --force
           php artisan config:cache
           php artisan route:cache
           php artisan view:cache
-          npm run production
-           # Définir les permissions appropriées pour www-data
-          sudo chown -R www-data:www-data /var/www/html/Roulette_Lara
+
+          # 8. Nettoyage
+          rm -rf \$TEMP_DIR
+
+          # 9. Définir les permissions finales pour le serveur Web (www-data)
+          echo "Définition des permissions finales pour www-data..."
+          # L'utilisateur du serveur web doit posséder les fichiers
+          sudo chown -R www-data:www-data \$APP_DIR
+          # Les répertoires de cache et de stockage doivent être accessibles en écriture par www-data
+          sudo chmod -R 775 \$APP_DIR/storage
+          sudo chmod -R 775 \$APP_DIR/bootstrap/cache
 
           echo "Deployment successful"
           EOF
