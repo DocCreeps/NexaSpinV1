@@ -49,6 +49,11 @@ jobs:
           # Réinitialiser les modifications locales
           git reset --hard origin/master
 
+          whoami
+          ls -la /var/www/html/Roulette_Lara | head -n 5
+          git remote -v
+          git status
+
           # Mettre à jour le dépôt
           git pull origin master
 
