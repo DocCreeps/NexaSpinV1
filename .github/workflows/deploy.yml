@@ -1,4 +1,4 @@
-name: Build and deploy Laravel app to VPS
+name: 🚀 Build & Deploy Laravel app to VPS
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 env:
-  PHP_VERSION: '8.x'  # set this to the PHP version to use
+  PHP_VERSION: '8.3' # adapte à ta version
 
 permissions:
   contents: read
@@ -16,103 +16,88 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: 🧩 Checkout repository
+        uses: actions/checkout@v4
 
-      # 1. Configuration de la clé SSH
-      - name: Set up SSH
+      - name: 🔐 Set up SSH agent
         uses: webfactory/ssh-agent@v0.5.3
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      # 2. Déploiement via SSH
-      - name: Deploy to VPS
+      - name: 🚀 Deploy Laravel app to VPS
         run: |
-          # --- Définition des variables sur le runner local pour le script SSH ---
-          SSH_USER=${{ secrets.SSH_USER }}
-          SSH_HOST=${{ secrets.SSH_HOST }}
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
 
-          # --- Lancement de la connexion SSH et des commandes sur le VPS ---
-          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST << EOF
+          # === VARIABLES ===
+          APP_NAME=Roulette_Lara               # ⚙️ Nom de ton dossier projet (à adapter)
+          APP_DIR=/var/www/html/$APP_NAME
+          REPO_URL=git@github.com:DocCreeps/Roulette_Lara.git
+          TEMP_DIR=/tmp/deploy_backup_$$
 
-          APP_DIR=/var/www/html/Roulette_Lara
-          TEMP_DIR=/tmp/laravel_backup_$$ # Utiliser /tmp pour un répertoire temporaire sûr
+          echo "=== 🚀 Déploiement de $APP_NAME ==="
 
-          echo "Démarrage du déploiement sur \$APP_DIR"
+          # === Préparation du répertoire ===
+          sudo mkdir -p /var/www/html
+          sudo chown -R $USER:$USER /var/www/html
+          sudo chmod -R 755 /var/www/html
 
-          # 1. S'assurer que le répertoire de l'application est créé et appartient à l'utilisateur SSH
-          if [ ! -d \$APP_DIR ]; then
-              echo "Répertoire non trouvé, tentative de création et de clonage initial."
-              sudo mkdir -p \$APP_DIR
-              sudo chown -R $SSH_USER:$SSH_USER \$APP_DIR
-              git clone git@github.com:DocCreeps/Roulette_Lara.git \$APP_DIR
+          if [ ! -d "$APP_DIR" ]; then
+              echo "Clonage initial du dépôt..."
+              git clone $REPO_URL $APP_DIR
           fi
 
-          # Entrer dans le répertoire de l'application
-          cd \$APP_DIR
+          cd $APP_DIR
 
-          # Assurer les permissions pour l'utilisateur SSH pour les opérations Git et de fichiers
-
-          sudo chown -R $SSH_USER:$SSH_USER .
-
-          # CORRECTION D'ERREUR GIT: Permettre à Git de faire des opérations si l'utilisateur SSH n'est pas le propriétaire originel
-          git config --global --add safe.directory \$APP_DIR
-
-          # 2. Gestion du fichier .env
-          mkdir -p \$TEMP_DIR
+          # === Sauvegarde du .env ===
+          mkdir -p $TEMP_DIR
           if [ -f .env ]; then
-              echo "Sauvegarde du fichier .env existant."
-              cp .env \$TEMP_DIR/.env.backup
+              echo "Sauvegarde du .env..."
+              cp .env $TEMP_DIR/.env.backup
           fi
 
-          # 3. Pull des dernières modifications
-          echo "Mise à jour du dépôt Git..."
+          # === Mise à jour du code ===
+          echo "Mise à jour du dépôt..."
+          git fetch origin
           git reset --hard origin/master
           git pull origin master
 
-          # 4. Restauration/Création du .env (Doit être avant Composer/Artisan)
-          if [ -f \$TEMP_DIR/.env.backup ]; then
-              echo "Restauration du fichier .env sauvegardé."
-              mv \$TEMP_DIR/.env.backup .env
-          elif [ ! -f .env ]; then
-              if [ -f .env.example ]; then
-                  echo "Création du .env à partir de .env.example."
-                  cp .env.example .env
-                  php artisan key:generate
-              fi
+          # === Restauration du .env ===
+          if [ -f $TEMP_DIR/.env.backup ]; then
+              echo "Restauration du .env..."
+              mv $TEMP_DIR/.env.backup .env
+          elif [ -f .env.example ]; then
+              echo "Création du .env depuis .env.example..."
+              cp .env.example .env
+              php artisan key:generate
           fi
 
-          # 5. Dépendances PHP (Composer)
+          # === Dépendances backend ===
           if [ -f composer.json ]; then
-              echo "Exécution de Composer install..."
+              echo "Installation des dépendances PHP..."
               composer install --no-interaction --prefer-dist --optimize-autoloader
-          else
-              echo "Le fichier composer.json n'existe pas. SKIP."
           fi
 
-          # 6. Dépendances Frontend (NPM)
+          # === Dépendances frontend ===
           if [ -f package.json ]; then
-              echo "Exécution de NPM install et compilation des assets..."
-              npm install
-              npm run build || echo "NPM build script failed. Check your package.json."
-          else
-              echo "Le fichier package.json n'existe pas. SKIP."
+              echo "Installation des dépendances NPM..."
+              npm ci || npm install
+              npm run prod || npm run production || npm run build || echo "⚠️ Aucun script de build NPM trouvé."
           fi
 
-          # 7. Optimisation et Migrations Laravel
-          echo "Optimisation Laravel et cache..."
-          php artisan optimize:cl
+          # === Optimisation Laravel ===
+          echo "Optimisation du cache Laravel..."
+          php artisan optimize:clear
+          php artisan config:cache
+          php artisan route:cache
+          php artisan view:cache
 
-          # 8. Nettoyage
-          rm -rf \$TEMP_DIR
+          # === Permissions finales ===
+          echo "Application des permissions finales..."
+          sudo chown -R www-data:www-data $APP_DIR
+          sudo chmod -R 775 $APP_DIR/storage $APP_DIR/bootstrap/cache
 
-          # 9. Définir les permissions finales pour le serveur Web (www-data)
-          echo "Définition des permissions finales pour www-data..."
-          # L'utilisateur du serveur web doit posséder les fichiers
+          # === Nettoyage ===
+          rm -rf $TEMP_DIR
 
-          sudo chown -R www-data:www-data \$APP_DIR
-          # Les répertoires de cache et de stockage doivent être accessibles en écriture par www-data
-          sudo chmod -R 775 \$APP_DIR/storage
-          sudo chmod -R 775 \$APP_DIR/bootstrap/cache
-
-          echo "Deployment successful"
+          echo "✅ Déploiement terminé avec succès pour $APP_NAME"
           EOF
