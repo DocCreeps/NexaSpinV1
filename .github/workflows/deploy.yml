@@ -26,9 +26,8 @@ jobs:
 
       - name: 🚀 Deploy Laravel app to VPS
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << EOF
           whoami
           hostname
           pwd
-
           EOF
