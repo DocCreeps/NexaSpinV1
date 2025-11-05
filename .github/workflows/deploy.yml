@@ -52,7 +52,7 @@ jobs:
 
           # Assurer les permissions pour l'utilisateur SSH pour les opérations Git et de fichiers
 
-          chown -R $SSH_USER:$SSH_USER .
+          sudo chown -R $SSH_USER:$SSH_USER .
 
           # CORRECTION D'ERREUR GIT: Permettre à Git de faire des opérations si l'utilisateur SSH n'est pas le propriétaire originel
           git config --global --add safe.directory \$APP_DIR
