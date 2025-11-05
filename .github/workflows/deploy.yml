@@ -1,4 +1,4 @@
-name: 🚀 Build & Deploy Laravel app to VPS
+name: Build and deploy Laravel app to VPS
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 env:
-  PHP_VERSION: '8.3' # adapte à ta version
+  PHP_VERSION: '8.x'  # set this to the PHP version to use
 
 permissions:
   contents: read
@@ -16,18 +16,85 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 🧩 Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: 🔐 Set up SSH agent
+      - name: Set up SSH
         uses: webfactory/ssh-agent@v0.5.3
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: 🚀 Deploy Laravel app to VPS
+      - name: Deploy to VPS
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << EOF
-          whoami
-          hostname
-          pwd
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+          # Vérifier et ajuster les permissions du répertoire parent
+          sudo chown -R ${{ secrets.SSH_USER }}:${{ secrets.SSH_USER }} /var/www/html
+          sudo chmod -R 755 /var/www/html
+
+          # Créer le répertoire de destination s'il n'existe pas
+          if [ ! -d /var/www/html/Roulette_Lara ]; then
+              git clone git@github.com:DocCreeps/Roulette_Lara.git /var/www/html/Roulette_Lara
+          fi
+
+          cd /var/www/html/Roulette_Lara
+
+          # Créer un répertoire temporaire pour la sauvegarde dans /var/www/html
+          TEMP_DIR=/var/www/html/temp_backup
+          mkdir -p $TEMP_DIR
+
+          # Sauvegarder le fichier .env dans le répertoire temporaire
+          if [ -f .env ]; then
+              cp .env $TEMP_DIR/.env.backup
+          fi
+
+          # Réinitialiser les modifications locales
+          git reset --hard origin/master
+
+          # Mettre à jour le dépôt
+          git pull origin master
+
+          # Restaurer le fichier .env depuis le répertoire temporaire
+          if [ -f $TEMP_DIR/.env.backup ]; then
+              cp $TEMP_DIR/.env.backup .env
+          fi
+
+          # Supprimer le répertoire temporaire
+          rm -rf $TEMP_DIR
+
+
+          # Vérifier et exécuter Composer
+          if [ -f composer.json ]; then
+              composer install --no-interaction --prefer-dist --optimize-autoloader
+          else
+              echo "Le fichier composer.json n'existe pas."
+              exit 1
+          fi
+
+          # Vérifier et exécuter npm
+          if [ -f package.json ]; then
+              npm install
+              npm run prod
+          else
+              echo "Le fichier package.json n'existe pas."
+              exit 1
+          fi
+
+          # Vérifier et copier .env.example
+          if [ ! -f .env ]; then
+              if [ -f .env.example ]; then
+                  cp .env.example .env
+                  php artisan key:generate
+              else
+                  echo "Le fichier .env.example n'existe pas."
+                  exit 1
+              fi
+          fi
+
+          php artisan config:cache
+          php artisan route:cache
+          php artisan view:cache
+          npm run production
+           # Définir les permissions appropriées pour www-data
+          sudo chown -R www-data:www-data /var/www/html/Roulette_Lara
+
+          echo "Deployment successful"
           EOF
