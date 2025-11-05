@@ -25,10 +25,10 @@ jobs:
       - name: Test SSH
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << EOF
-          whoami
-          pwd
-          echo "Connexion SSH OK"
-          EOF
+whoami
+pwd
+echo "Connexion SSH OK"
+EOF
 
       - name: Deploy to VPS
         run: |
