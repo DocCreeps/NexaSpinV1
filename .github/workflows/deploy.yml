@@ -42,10 +42,8 @@ jobs:
           # 1. S'assurer que le répertoire de l'application est créé et appartient à l'utilisateur SSH
           if [ ! -d \$APP_DIR ]; then
               echo "Répertoire non trouvé, tentative de création et de clonage initial."
-              # Tente de créer le répertoire (nécessite 'sudo' si /var/www/html est possédé par root)
-              sudo mkdir -p \$APP_DIR
-              # On définit les permissions pour que l'utilisateur SSH puisse écrire dans le répertoire.
-              sudo chown -R $SSH_USER:$SSH_USER \$APP_DIR
+              mkdir -p \$APP_DIR
+              chown -R $SSH_USER:$SSH_USER \$APP_DIR
               git clone git@github.com:DocCreeps/Roulette_Lara.git \$APP_DIR
           fi
 
@@ -53,9 +51,8 @@ jobs:
           cd \$APP_DIR
 
           # Assurer les permissions pour l'utilisateur SSH pour les opérations Git et de fichiers
-          # CORRECTION CRITIQUE: L'échec du 'sudo' ici a bloqué le script.
-          # L'utilisateur SSH DOIT être configuré pour un 'sudo sans mot de passe' sur le VPS.
-          sudo chown -R $SSH_USER:$SSH_USER .
+
+          chown -R $SSH_USER:$SSH_USER .
 
           # CORRECTION D'ERREUR GIT: Permettre à Git de faire des opérations si l'utilisateur SSH n'est pas le propriétaire originel
           git config --global --add safe.directory \$APP_DIR
@@ -112,10 +109,10 @@ jobs:
           echo "Définition des permissions finales pour www-data..."
           # L'utilisateur du serveur web doit posséder les fichiers
 
-          sudo chown -R www-data:www-data \$APP_DIR
+          chown -R www-data:www-data \$APP_DIR
           # Les répertoires de cache et de stockage doivent être accessibles en écriture par www-data
-          sudo chmod -R 775 \$APP_DIR/storage
-          sudo chmod -R 775 \$APP_DIR/bootstrap/cache
+          chmod -R 775 \$APP_DIR/storage
+          chmod -R 775 \$APP_DIR/bootstrap/cache
 
           echo "Deployment successful"
           EOF
