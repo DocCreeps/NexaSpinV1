@@ -23,88 +23,85 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: Test SSH
+      - name: Test SSH connection
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
-          echo "=== Test SSH ==="
-          whoami
-          pwd
-          echo "Connexion SSH OK ✅"
-          EOF
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} <<'EOF'
+  echo "✅ Connexion SSH OK"
+  whoami
+  pwd
+  EOF
 
-      - name: Deploy to VPS
-        run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
-          echo "=== Début du déploiement ==="
+- name: Deploy to VPS
+  run: |
+    ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} <<'EOF'
+  echo "=== 🚀 Début du déploiement ==="
 
-          # Vérifier et ajuster les permissions du répertoire parent
-          sudo chown -R ${{ secrets.SSH_USER }}:${{ secrets.SSH_USER }} /var/www/html
-          sudo chmod -R 755 /var/www/html
+  # Vérifier les permissions
+  sudo chown -R ${{ secrets.SSH_USER }}:${{ secrets.SSH_USER }} /var/www/html
+  sudo chmod -R 755 /var/www/html
 
-          # Cloner le dépôt s'il n'existe pas
-          if [ ! -d /var/www/html/Roulette_Lara ]; then
-              git clone git@github.com:DocCreeps/Roulette_Lara.git /var/www/html/Roulette_Lara
-          fi
+  # Cloner le dépôt s'il n'existe pas
+  if [ ! -d /var/www/html/Roulette_Lara ]; then
+  git clone git@github.com:DocCreeps/Roulette_Lara.git /var/www/html/Roulette_Lara
+  fi
 
-          cd /var/www/html/Roulette_Lara
+  cd /var/www/html/Roulette_Lara
 
-          # Créer un répertoire temporaire pour sauvegarder .env
-          TEMP_DIR=/var/www/html/temp_backup
-          mkdir -p $TEMP_DIR
+  # Sauvegarde temporaire du .env
+  TEMP_DIR=/var/www/html/temp_backup
+  mkdir -p $TEMP_DIR
+  if [ -f .env ]; then
+  cp .env $TEMP_DIR/.env.backup
+  fi
 
-          # Sauvegarder le fichier .env
-          if [ -f .env ]; then
-              cp .env $TEMP_DIR/.env.backup
-          fi
+  # Pull du dépôt
+  git fetch origin master
+  git reset --hard origin/master
+  git pull origin master
 
-          # Réinitialiser et mettre à jour le dépôt
-          git fetch origin master
-          git reset --hard origin/master
-          git pull origin master
+  # Restauration du .env
+  if [ -f $TEMP_DIR/.env.backup ]; then
+  cp $TEMP_DIR/.env.backup .env
+  fi
+  rm -rf $TEMP_DIR
 
-          # Restaurer le fichier .env
-          if [ -f $TEMP_DIR/.env.backup ]; then
-              cp $TEMP_DIR/.env.backup .env
-          fi
-          rm -rf $TEMP_DIR
+  # Composer
+  if [ -f composer.json ]; then
+  composer install --no-interaction --prefer-dist --optimize-autoloader
+  else
+  echo "composer.json manquant ❌"
+  exit 1
+  fi
 
-          # Installer les dépendances PHP
-          if [ -f composer.json ]; then
-              composer install --no-interaction --prefer-dist --optimize-autoloader
-          else
-              echo "composer.json manquant ❌"
-              exit 1
-          fi
+  # NPM
+  if [ -f package.json ]; then
+  npm ci || npm install
+  npm run build || npm run prod || npm run production
+  else
+  echo "package.json manquant ❌"
+  exit 1
+  fi
 
-          # Installer les dépendances npm
-          if [ -f package.json ]; then
-              npm ci || npm install
-              npm run build || npm run prod || npm run production
-          else
-              echo "package.json manquant ❌"
-              exit 1
-          fi
+  # Vérification .env
+  if [ ! -f .env ]; then
+  if [ -f .env.example ]; then
+  cp .env.example .env
+  php artisan key:generate
+  else
+  echo ".env.example manquant ❌"
+  exit 1
+  fi
+  fi
 
-          # Vérifier .env
-          if [ ! -f .env ]; then
-              if [ -f .env.example ]; then
-                  cp .env.example .env
-                  php artisan key:generate
-              else
-                  echo ".env.example manquant ❌"
-                  exit 1
-              fi
-          fi
+  # Optimisation Laravel
+  php artisan optimize:clear || true
+  php artisan config:cache || true
+  php artisan route:cache || true
+  php artisan view:cache || true
 
-          # Caches Laravel
-          php artisan optimize:clear || true
-          php artisan config:cache || true
-          php artisan route:cache || true
-          php artisan view:cache || true
+  # Permissions finales
+  sudo chown -R www-data:www-data /var/www/html/Roulette_Lara
+  sudo chmod -R 775 /var/www/html/Roulette_Lara/storage /var/www/html/Roulette_Lara/bootstrap/cache
 
-          # Permissions finales
-          sudo chown -R www-data:www-data /var/www/html/Roulette_Lara
-          sudo chmod -R 775 /var/www/html/Roulette_Lara/storage /var/www/html/Roulette_Lara/bootstrap/cache
-
-          echo "✅ Déploiement terminé avec succès"
-          EOF
+  echo "✅ Déploiement terminé avec succès"
+  EOF
