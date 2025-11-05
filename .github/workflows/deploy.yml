@@ -43,7 +43,7 @@ jobs:
           if [ ! -d \$APP_DIR ]; then
               echo "Répertoire non trouvé, tentative de création et de clonage initial."
               mkdir -p \$APP_DIR
-              chown -R $SSH_USER:$SSH_USER \$APP_DIR
+              sudo chown -R $SSH_USER:$SSH_USER \$APP_DIR
               git clone git@github.com:DocCreeps/Roulette_Lara.git \$APP_DIR
           fi
 
@@ -109,10 +109,10 @@ jobs:
           echo "Définition des permissions finales pour www-data..."
           # L'utilisateur du serveur web doit posséder les fichiers
 
-          chown -R www-data:www-data \$APP_DIR
+          sudo chown -R www-data:www-data \$APP_DIR
           # Les répertoires de cache et de stockage doivent être accessibles en écriture par www-data
-          chmod -R 775 \$APP_DIR/storage
-          chmod -R 775 \$APP_DIR/bootstrap/cache
+          sudo chmod -R 775 \$APP_DIR/storage
+          sudo chmod -R 775 \$APP_DIR/bootstrap/cache
 
           echo "Deployment successful"
           EOF
