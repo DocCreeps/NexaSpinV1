@@ -96,8 +96,7 @@ jobs:
           if [ -f package.json ]; then
               echo "Exécution de NPM install et compilation des assets..."
               npm install
-              # CORRECTION NPM: Essayer 'production', sinon essayer 'build' (le plus standard pour Vite/Mix récent)
-              npm run production || npm run build || echo "NPM build script failed. Check your package.json."
+              npm run build || echo "NPM build script failed. Check your package.json."
           else
               echo "Le fichier package.json n'existe pas. SKIP."
           fi
@@ -112,7 +111,7 @@ jobs:
           # 9. Définir les permissions finales pour le serveur Web (www-data)
           echo "Définition des permissions finales pour www-data..."
           # L'utilisateur du serveur web doit posséder les fichiers
-          # CORRECTION CRITIQUE: Cette commande 'sudo' peut aussi demander un mot de passe et bloquer le script.
+
           sudo chown -R www-data:www-data \$APP_DIR
           # Les répertoires de cache et de stockage doivent être accessibles en écriture par www-data
           sudo chmod -R 775 \$APP_DIR/storage
