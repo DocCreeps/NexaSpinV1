@@ -1,0 +1,73 @@
+name: Build and deploy Laravel app to VPS
+on:
+  push:
+    branches: [ "master" ]
+  workflow_dispatch:
+env:
+  PHP_VERSION: '8.x'
+permissions:
+  contents: read
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      - name: Deploy to VPS
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+          set -e
+          DEPLOY_DIR=/var/www/html/Roulette_Lara
+          TEMP_DIR=/var/www/html/temp_backup
+          mkdir -p $TEMP_DIR
+
+          # Clone ou pull selon si le répertoire existe
+          if [ ! -d $DEPLOY_DIR ]; then
+              git clone git@github.com:DocCreeps/Roulette_Lara.git $DEPLOY_DIR
+              cd $DEPLOY_DIR
+              cp .env.example .env
+              php artisan key:generate
+          else
+              cd $DEPLOY_DIR
+              # Sauvegarde .env s'il existe
+              if [ -f .env ]; then
+                  cp .env $TEMP_DIR/.env.backup
+              fi
+              git reset --hard origin/master
+              git pull origin master
+              # Restaure .env s'il était sauvegardé
+              if [ -f $TEMP_DIR/.env.backup ]; then
+                  cp $TEMP_DIR/.env.backup .env
+              fi
+          fi
+
+          # Install dependencies
+          if [ -f composer.json ]; then
+              composer install --no-interaction --prefer-dist --optimize-autoloader
+          else
+              echo "composer.json not found"
+              exit 1
+          fi
+
+          if [ -f package.json ]; then
+              npm install
+              npm run prod
+          else
+              echo "package.json not found"
+              exit 1
+          fi
+
+          # Cache and permissions
+          php artisan config:cache
+          php artisan route:cache
+          php artisan view:cache
+          sudo chown -R www-data:www-data $DEPLOY_DIR
+          sudo chmod -R 755 $DEPLOY_DIR
+
+          # Cleanup
+          rm -rf $TEMP_DIR
+          echo "Deployment successful"
+          EOF
