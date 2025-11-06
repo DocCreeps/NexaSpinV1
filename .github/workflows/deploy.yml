@@ -22,20 +22,13 @@ jobs:
         uses: webfactory/ssh-agent@v0.5.3
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-      - name: Test SSH
-        run: |
-          cat <<'SCRIPT' | ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} 'bash -s'
-          echo "✅ SSH fonctionne sur Roulette_Lara"
-          whoami
-          pwd
-          SCRIPT
 
       - name: Deploy to VPS
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
           # Vérifier et ajuster les permissions du répertoire parent
-          sudo chown -R ${{ secrets.SSH_USER }}:${{ secrets.SSH_USER }} /var/www/html
-          sudo chmod -R 755 /var/www/html
+          sudo chown -R ${{ secrets.SSH_USER }}:${{ secrets.SSH_USER }} /var/www/html/Roulette_Lara
+          sudo chmod -R 755 /var/www/html/Roulette_Lara
 
           # Créer le répertoire de destination s'il n'existe pas
           if [ ! -d /var/www/html/Roulette_Lara ]; then
