@@ -28,29 +28,18 @@ jobs:
           ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} /bin/bash << 'EOF'
           set -euo pipefail
 
-          DEPLOY_DIR=/var/www/html/Roulette_Lara
-          TEMP_DIR=/var/www/html/temp_backup
+          DEPLOY_DIR=/home/deploy/Roulette_Lara
+          TEMP_DIR=/home/deploy/temp_backup
 
-          echo "🚀 Début du déploiement - $(date)"
+          echo "Début du déploiement - $(date)"
 
-          # === Vérifications préalables ===
-          if ! sudo -n true 2>/dev/null; then
-            echo "❌ Pas de sudo sans password"
-            exit 1
-          fi
+          # Crée les dossiers si besoin
+          mkdir -p $TEMP_DIR $DEPLOY_DIR
 
-          if ! git ls-remote git@github.com:DocCreeps/Roulette_Lara.git HEAD &>/dev/null; then
-            echo "❌ Clé SSH GitHub non configurée sur le VPS !"
-            echo "   Ajoute la clé publique suivante sur GitHub → Deploy keys :"
-            echo "   $(cat ~/.ssh/id_ed25519.pub || cat ~/.ssh/id_rsa.pub)"
-            exit 1
-          fi
-
-          mkdir -p $TEMP_DIR
-
-          # === Clone ou Pull ===
-          if [ ! -d "$DEPLOY_DIR" ]; then
-            echo "📦 Premier déploiement → clone"
+          # Clone ou pull
+          if [ ! -d "$DEPLOY_DIR/.git" ]; then
+            echo "Premier déploiement → clone"
+            rm -rf $DEPLOY_DIR
             git clone git@github.com:DocCreeps/Roulette_Lara.git $DEPLOY_DIR
             cd $DEPLOY_DIR
             cp .env.example .env
@@ -58,12 +47,12 @@ jobs:
           else
             cd $DEPLOY_DIR
             [ -f .env ] && cp .env $TEMP_DIR/.env.backup
+            git fetch --all
             git reset --hard origin/master
-            git pull origin master
+            git clean -fd
             [ -f $TEMP_DIR/.env.backup ] && cp $TEMP_DIR/.env.backup .env
           fi
 
-          # === Dépendances ===
           composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
 
           if [ -f package.json ]; then
@@ -71,20 +60,26 @@ jobs:
             npm run prod
           fi
 
-          # === Laravel ===
           php artisan migrate --force
           php artisan config:cache
           php artisan route:cache
           php artisan view:cache
           php artisan storage:link || true
 
-          # === Permissions ===
-          sudo chown -R www-data:www-data $DEPLOY_DIR
-          sudo find $DEPLOY_DIR/storage $DEPLOY_DIR/bootstrap/cache -type d -exec chmod 775 {} \;
-          sudo find $DEPLOY_DIR/storage $DEPLOY_DIR/bootstrap/cache -type f -exec chmod 664 {} \;
+          # Copie tout dans /var/www/html (seul endroit où Apache regarde)
+          echo "Copie vers le dossier web public..."
+          sudo rsync -av --delete \
+            --exclude='.env' \
+            --exclude='.git' \
+            $DEPLOY_DIR/ /var/www/html/Roulette_Lara/
 
-          # === Nettoyage ===
+          # Permissions finales
+          sudo chown -R www-data:www-data /var/www/html/Roulette_Lara
+          sudo chmod -R 775 /var/www/html/Roulette_Lara/storage
+          sudo chmod -R 775 /var/www/html/Roulette_Lara/bootstrap/cache
+
+          # Nettoyage
           rm -rf $TEMP_DIR
 
-          echo "✅ Déploiement terminé avec succès ! $(date)"
+          echo "DÉPLOIEMENT TERMINÉ AVEC SUCCÈS ! $(date)"
           EOF
