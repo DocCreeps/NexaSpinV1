@@ -44,7 +44,7 @@ jobs:
           fi
           if [ -f package.json ]; then
               npm install
-              npm run prod
+              npm run build
           else
               echo "Le fichier package.json n'existe pas."
               exit 1
@@ -58,10 +58,10 @@ jobs:
                   exit 1
               fi
           fi
-          php artisan config:cache
-          php artisan route:cache
-          php artisan view:cache
-          npm run production
+          php artisan optimize:cl
+          npm run build
           sudo chown -R www-data:www-data /var/www/html/Roulette_Lara
+          sudo chmod -R 775 /var/www/html/Roulette_Lara/storage
+          sudo chmod -R 775 /var/www/html/Roulette_Lara/bootstrap/cache
           echo "Deployment successful"
           EOF
