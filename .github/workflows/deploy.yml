@@ -1,69 +1,114 @@
-name: Build and deploy Laravel app to VPS
+name: 🚀 Build and deploy Laravel app to VPS
 on:
   push:
     branches: [ "master" ]
   workflow_dispatch:
+
 env:
   PHP_VERSION: '8.x'
+
 permissions:
   contents: read
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Set up SSH
+      # 📥 1. Récupération du code
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      # 🔑 2. Connexion SSH
+      - name: 🔑 Setup SSH agent
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-      - name: Deploy to VPS
+
+      # 🚀 3. DÉPLOIEMENT SUR LE VPS
+      - name: 🚀 Deploy to VPS
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash -s << 'EOF'
+          echo "============================================================="
+          echo "🚀 DÉBUT DU DÉPLOIEMENT - $(date)"
+          echo "============================================================="
+
+          # 📂 Droits temporaires pour l'utilisateur SSH
+          echo "🔧 Correction des permissions temporaires..."
           sudo chown -R ${{ secrets.SSH_USER }}:${{ secrets.SSH_USER }} /var/www/html
           sudo chmod -R 755 /var/www/html
+
+          # 📂 Clone du projet s'il n'existe pas
           if [ ! -d /var/www/html/Roulette_Lara ]; then
+              echo "📦 Premier déploiement détecté → clonage du repo..."
               git clone git@github.com:DocCreeps/Roulette_Lara.git /var/www/html/Roulette_Lara
           fi
+
           cd /var/www/html/Roulette_Lara
+
+          # 💾 Backup temporaire du .env
           TEMP_DIR=/var/www/html/temp_backup
+          echo "💾 Sauvegarde du .env en cours..."
           mkdir -p $TEMP_DIR
-          if [ -f .env ]; then
-              cp .env $TEMP_DIR/.env.backup
-          fi
+          [ -f .env ] && cp .env $TEMP_DIR/.env.backup && echo "✅ .env sauvegardé"
+
+          # 🔄 Reset + Pull latest code
+          echo "🔄 Mise à jour du code (hard reset + pull)..."
           git reset --hard origin/master
           git pull origin master
-          if [ -f $TEMP_DIR/.env.backup ]; then
-              cp $TEMP_DIR/.env.backup .env
-          fi
+
+          # 🔄 Restauration du .env
+          [ -f $TEMP_DIR/.env.backup ] && cp $TEMP_DIR/.env.backup .env && echo "✅ .env restauré"
           rm -rf $TEMP_DIR
+
+          # 📦 Composer dependencies
           if [ -f composer.json ]; then
-              composer install --no-interaction --prefer-dist --optimize-autoloader
+              echo "📦 Installation des dépendances PHP (Composer)..."
+              composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
           else
-              echo "Le fichier composer.json n'existe pas."
+              echo "❌ ERREUR : composer.json introuvable !"
               exit 1
           fi
+
+          # 🖌️ Frontend build (Vite / NPM)
           if [ -f package.json ]; then
+              echo "🖌️ Build des assets (npm install + build)..."
               npm install
               npm run build
           else
-              echo "Le fichier package.json n'existe pas."
-              exit 1
+              echo "⚠️  package.json absent → pas de build frontend"
           fi
+
+          # 🌱 Création du .env si manquant
           if [ ! -f .env ]; then
+              echo "🌱 .env manquant → création à partir de .env.example"
               if [ -f .env.example ]; then
                   cp .env.example .env
                   php artisan key:generate
+                  echo "🔑 Clé d'application générée"
               else
-                  echo "Le fichier .env.example n'existe pas."
+                  echo "❌ .env.example introuvable !"
                   exit 1
               fi
           fi
-          
-          php artisan config:cache
-          php artisan route:cache
-          php artisan view:cache
 
+          # ⚡ Cache Laravel
+          echo "⚡ Mise en cache Laravel..."
+          php artisan config:cache && echo "✅ Config cached"
+          php artisan route:cache  && echo "✅ Routes cached"
+          php artisan view:cache   && echo "✅ Views cached"
+
+          # 🖼️ Build final des assets (au cas où)
+          echo "🖼️ Build final des assets..."
           npm run build
-          sudo chown -R www-data:www-data /var/www/html
-          echo "Deployment successful"
+
+          # 👮 Redonner les droits à www-data
+          echo "👮 Application des droits www-data..."
+          sudo chown -R www-data:www-data /var/www/html/Roulette_Lara
+          sudo chmod -R 755 /var/www/html/Roulette_Lara/storage
+          sudo chmod -R 755 /var/www/html/Roulette_Lara/bootstrap/cache
+
+          # 🎉 FIN
+          echo "============================================================="
+          echo "🎉 DÉPLOIEMENT TERMINÉ AVEC SUCCÈS ! $(date)"
+          echo "============================================================="
           EOF
