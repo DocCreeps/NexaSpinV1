@@ -25,70 +25,90 @@ jobs:
 
       - name: Deploy to VPS
         run: |
-            ssh -o StrictHostKeyChecking=no piloterie@${{ secrets.SSH_HOST }} /bin/bash << 'EOF'
-            set -euo pipefail
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+          #!/bin/bash
+          set -euo pipefail
 
-            # ── Chemins (100% sûrs pour toi) ──
-            WORK_DIR="/home/piloterie/Roulette_Lara_deploy"
-            BACKUP_DIR="/home/piloterie/deploy_backup"
-            FINAL_DIR="/var/www/html/Roulette_Lara"
+          DEPLOY_DIR=/var/www/html/Roulette_Lara
+          TEMP_DIR=/var/www/html/temp_backup
 
-            echo "Déploiement Laravel – $(date)"
+          echo "🚀 Début du déploiement"
 
-            # Création des dossiers temporaires
-            mkdir -p "$WORK_DIR" "$BACKUP_DIR"
-            rm -rf "$WORK_DIR"/*
+          # Vérifier droits sudo
+          if ! sudo -n true 2>/dev/null; then
+              echo "❌ L'utilisateur $USER n'a pas les droits sudo sans mot de passe"
+              exit 1
+          else
+              echo "✅ Droits sudo OK"
+          fi
 
-            # Clone frais (plus fiable que pull)
-            git clone git@github.com:DocCreeps/Roulette_Lara.git "$WORK_DIR"
-            cd "$WORK_DIR"
+          # Vérifier accès GitHub
+          if ! git ls-remote git@github.com:DocCreeps/Roulette_Lara.git &>/dev/null; then
+              echo "❌ Accès GitHub refusé. Vérifie la clé SSH sur le VPS"
+              exit 1
+          else
+              echo "✅ Accès GitHub OK"
+          fi
 
-            # ── .env intelligent ──
-            if [ -f "$FINAL_DIR/.env" ]; then
-              cp "$FINAL_DIR/.env" "$BACKUP_DIR/.env"
-              echo ".env sauvegardé depuis le site live"
-            elif [ -f ".env.example" ]; then
-              cp .env.example .env
-              php artisan key:generate --force
-              echo ".env créé depuis .env.example"
-            fi
+          mkdir -p $TEMP_DIR
 
-            # Dépendances
-            composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
+          # Clone ou pull
+          if [ ! -d $DEPLOY_DIR ]; then
+              echo "📦 Clonage du dépôt..."
+              git clone git@github.com:DocCreeps/Roulette_Lara.git $DEPLOY_DIR
+              cd $DEPLOY_DIR
+              if [ -f .env.example ]; then
+                  cp .env.example .env
+                  php artisan key:generate
+                  echo "✅ .env créé depuis .env.example"
+              fi
+          else
+              echo "🔄 Mise à jour du dépôt..."
+              cd $DEPLOY_DIR
+              if [ -f .env ]; then
+                  cp .env $TEMP_DIR/.env.backup
+                  echo "💾 .env sauvegardé"
+              fi
+              git reset --hard origin/master
+              git pull origin master
+              if [ -f $TEMP_DIR/.env.backup ]; then
+                  cp $TEMP_DIR/.env.backup .env
+                  echo "♻️ .env restauré"
+              fi
+          fi
 
-            if [ -f package.json ]; then
-              npm ci --only=production
-              npm run prod
-            fi
+          # Installer dépendances PHP
+          if [ -f composer.json ]; then
+              echo "📦 Installation des dépendances PHP..."
+              composer install --no-interaction --prefer-dist --optimize-autoloader
+          else
+              echo "❌ composer.json manquant"
+              exit 1
+          fi
 
-            # Laravel
-            php artisan migrate --force
-            php artisan config:cache
-            php artisan route:cache
-            php artisan view:cache
-            php artisan storage:link || true
+          # Installer dépendances NPM
+          if [ -f package.json ]; then
+              echo "📦 Installation des dépendances NPM..."
+              npm install
+              npm run prod || npm run production
+          else
+              echo "❌ package.json manquant"
+              exit 1
+          fi
 
-            # ── Déploiement atomique ──
-            echo "Rsync atomique vers le site live..."
-            sudo rsync -av --delete \
-              --exclude='.git' \
-              --exclude='.env.example' \
-              --exclude='.gitignore' \
-              "$WORK_DIR/" "$FINAL_DIR/"
+          # Cache Laravel
+          echo "⚡ Caches Laravel..."
+          php artisan config:cache || true
+          php artisan route:cache || true
+          php artisan view:cache || true
 
-            # Restauration du .env (toujours le tien, jamais écrasé)
-            [ -f "$BACKUP_DIR/.env" ] && sudo cp "$BACKUP_DIR/.env" "$FINAL_DIR/.env"
+          # Permissions finales
+          echo "🔑 Ajustement des permissions..."
+          sudo chown -R www-data:www-data $DEPLOY_DIR
+          sudo chmod -R 775 $DEPLOY_DIR/storage $DEPLOY_DIR/bootstrap/cache
 
-            # Permissions parfaites
-            sudo chown -R www-data:www-data "$FINAL_DIR"
-            sudo find "$FINAL_DIR/storage" "$FINAL_DIR/bootstrap/cache" -type d -exec chmod 775 {} \;
-            sudo find "$FINAL_DIR/storage" "$FINAL_DIR/bootstrap/cache" -type f -exec chmod 664 {} \;
+          # Cleanup
+          rm -rf $TEMP_DIR
 
-            # Nettoyage
-            rm -rf "$BACKUP_DIR"
-
-            echo ""
-            echo "DÉPLOIEMENT TERMINÉ EN BEAUTÉ ! $(date +'%H:%M:%S')"
-            echo "Site live → https://$(hostname -f)"
-            echo "GG @DocCreeps_"
-            EOF
+          echo "✅ Déploiement terminé avec succès"
+          EOF
