@@ -23,88 +23,72 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      name: Deploy Laravel to VPS
-      on:
-        push:
-          branches: [ "master" ]
-        workflow_dispatch:
+      - name: Deploy to VPS
+        run: |
+            ssh -o StrictHostKeyChecking=no piloterie@${{ secrets.SSH_HOST }} /bin/bash << 'EOF'
+            set -euo pipefail
 
-      jobs:
-        deploy:
-          runs-on: ubuntu-latest
-          steps:
-            - uses: actions/checkout@v4
+            # ── Chemins (100% sûrs pour toi) ──
+            WORK_DIR="/home/piloterie/Roulette_Lara_deploy"
+            BACKUP_DIR="/home/piloterie/deploy_backup"
+            FINAL_DIR="/var/www/html/Roulette_Lara"
 
-            - name: Setup SSH
-              uses: webfactory/ssh-agent@v0.9.0
-              with:
-                ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+            echo "Déploiement Laravel – $(date)"
 
-            - name: Deploy to VPS
-              run: |
-                ssh -o StrictHostKeyChecking=no piloterie@${{ secrets.SSH_HOST }} /bin/bash << 'EOF'
-                set -euo pipefail
+            # Création des dossiers temporaires
+            mkdir -p "$WORK_DIR" "$BACKUP_DIR"
+            rm -rf "$WORK_DIR"/*
 
-                # ── Chemins (100% sûrs pour toi) ──
-                WORK_DIR="/home/piloterie/Roulette_Lara_deploy"
-                BACKUP_DIR="/home/piloterie/deploy_backup"
-                FINAL_DIR="/var/www/html/Roulette_Lara"
+            # Clone frais (plus fiable que pull)
+            git clone git@github.com:DocCreeps/Roulette_Lara.git "$WORK_DIR"
+            cd "$WORK_DIR"
 
-                echo "Déploiement Laravel – $(date)"
+            # ── .env intelligent ──
+            if [ -f "$FINAL_DIR/.env" ]; then
+              cp "$FINAL_DIR/.env" "$BACKUP_DIR/.env"
+              echo ".env sauvegardé depuis le site live"
+            elif [ -f ".env.example" ]; then
+              cp .env.example .env
+              php artisan key:generate --force
+              echo ".env créé depuis .env.example"
+            fi
 
-                # Création des dossiers temporaires
-                mkdir -p "$WORK_DIR" "$BACKUP_DIR"
-                rm -rf "$WORK_DIR"/*
+            # Dépendances
+            composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
 
-                # Clone frais (plus fiable que pull)
-                git clone git@github.com:DocCreeps/Roulette_Lara.git "$WORK_DIR"
-                cd "$WORK_DIR"
+            if [ -f package.json ]; then
+              npm ci --only=production
+              npm run prod
+            fi
 
-                # ── .env intelligent ──
-                if [ -f "$FINAL_DIR/.env" ]; then
-                  cp "$FINAL_DIR/.env" "$BACKUP_DIR/.env"
-                  echo ".env sauvegardé depuis le site live"
-                elif [ -f ".env.example" ]; then
-                  cp .env.example .env
-                  php artisan key:generate --force
-                  echo ".env créé depuis .env.example"
-                fi
+            # Laravel
+            php artisan migrate --force
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+            php artisan storage:link || true
 
-                # Dépendances
-                composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
+            # ── Déploiement atomique ──
+            echo "Rsync atomique vers le site live..."
+            sudo rsync -av --delete \
+              --exclude='.git' \
+              --exclude='.env.example' \
+              --exclude='.gitignore' \
+              "$WORK_DIR/" "$FINAL_DIR/"
 
-                if [ -f package.json ]; then
-                  npm ci --only=production
-                  npm run prod
-                fi
+            # Restauration du .env (toujours le tien, jamais écrasé)
+            [ -f "$BACKUP_DIR/.env" ] && sudo cp "$BACKUP_DIR/.env" "$FINAL_DIR/.env"
 
-                # Laravel
-                php artisan migrate --force
-                php artisan config:cache
-                php artisan route:cache
-                php artisan view:cache
-                php artisan storage:link || true
+            # Permissions parfaites
+            sudo chown -R www-data:www-data "$FINAL_DIR"
+            sudo find "$FINAL_DIR/storage" "$FINAL_DIR/bootstrap/cache" -type d -exec chmod 775 {} \;
+            sudo find "$FINAL_DIR/storage" "$FINAL_DIR/bootstrap/cache" -type f -exec chmod 664 {} \;
 
-                # ── Déploiement atomique ──
-                echo "Rsync atomique vers le site live..."
-                sudo rsync -av --delete \
-                  --exclude='.git' \
-                  --exclude='.env.example' \
-                  --exclude='.gitignore' \
-                  "$WORK_DIR/" "$FINAL_DIR/"
+            # Nettoyage
+            rm -rf "$BACKUP_DIR"
 
-                # Restauration du .env (toujours le tien, jamais écrasé)
-                [ -f "$BACKUP_DIR/.env" ] && sudo cp "$BACKUP_DIR/.env" "$FINAL_DIR/.env"
-
-                # Permissions parfaites
-                sudo chown -R www-data:www-data "$FINAL_DIR"
-                sudo find "$FINAL_DIR/storage" "$FINAL_DIR/bootstrap/cache" -type d -exec chmod 775 {} \;
-                sudo find "$FINAL_DIR/storage" "$FINAL_DIR/bootstrap/cache" -type f -exec chmod 664 {} \;
-
-                # Nettoyage
-                rm -rf "$BACKUP_DIR"
-
-                echo ""
-                echo "DÉPLOIEMENT TERMINÉ EN BEAUTÉ ! $(date +'%H:%M:%S')"
-
-                EOF
+            echo ""
+            echo "DÉPLOIEMENT TERMINÉ EN BEAUTÉ ! $(date +'%H:%M:%S')"
+            echo "Site live → https://$(hostname -f)"
+            echo "GG @DocCreeps_"
+            EOF
