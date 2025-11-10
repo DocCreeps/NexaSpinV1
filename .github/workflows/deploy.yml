@@ -58,8 +58,12 @@ jobs:
                   exit 1
               fi
           fi
-          php artisan optimize:cl
+          
+          php artisan config:cache
+          php artisan route:cache
+          php artisan view:cache
+
           npm run build
-          sudo chown -R www-data:www-data /var/www/html/Roulette_Lara
+          sudo chown -R www-data:www-data /var/www/html
           echo "Deployment successful"
           EOF
