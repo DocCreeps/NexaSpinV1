@@ -25,90 +25,66 @@ jobs:
 
       - name: Deploy to VPS
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
-          #!/bin/bash
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} /bin/bash << 'EOF'
           set -euo pipefail
 
           DEPLOY_DIR=/var/www/html/Roulette_Lara
           TEMP_DIR=/var/www/html/temp_backup
 
-          echo "🚀 Début du déploiement"
+          echo "🚀 Début du déploiement - $(date)"
 
-          # Vérifier droits sudo
+          # === Vérifications préalables ===
           if ! sudo -n true 2>/dev/null; then
-              echo "❌ L'utilisateur $USER n'a pas les droits sudo sans mot de passe"
-              exit 1
-          else
-              echo "✅ Droits sudo OK"
+            echo "❌ Pas de sudo sans password"
+            exit 1
           fi
 
-          # Vérifier accès GitHub
-          if ! git ls-remote git@github.com:DocCreeps/Roulette_Lara.git &>/dev/null; then
-              echo "❌ Accès GitHub refusé. Vérifie la clé SSH sur le VPS"
-              exit 1
-          else
-              echo "✅ Accès GitHub OK"
+          if ! git ls-remote git@github.com:DocCreeps/Roulette_Lara.git HEAD &>/dev/null; then
+            echo "❌ Clé SSH GitHub non configurée sur le VPS !"
+            echo "   Ajoute la clé publique suivante sur GitHub → Deploy keys :"
+            echo "   $(cat ~/.ssh/id_ed25519.pub || cat ~/.ssh/id_rsa.pub)"
+            exit 1
           fi
 
           mkdir -p $TEMP_DIR
 
-          # Clone ou pull
-          if [ ! -d $DEPLOY_DIR ]; then
-              echo "📦 Clonage du dépôt..."
-              git clone git@github.com:DocCreeps/Roulette_Lara.git $DEPLOY_DIR
-              cd $DEPLOY_DIR
-              if [ -f .env.example ]; then
-                  cp .env.example .env
-                  php artisan key:generate
-                  echo "✅ .env créé depuis .env.example"
-              fi
+          # === Clone ou Pull ===
+          if [ ! -d "$DEPLOY_DIR" ]; then
+            echo "📦 Premier déploiement → clone"
+            git clone git@github.com:DocCreeps/Roulette_Lara.git $DEPLOY_DIR
+            cd $DEPLOY_DIR
+            cp .env.example .env
+            php artisan key:generate
           else
-              echo "🔄 Mise à jour du dépôt..."
-              cd $DEPLOY_DIR
-              if [ -f .env ]; then
-                  cp .env $TEMP_DIR/.env.backup
-                  echo "💾 .env sauvegardé"
-              fi
-              git reset --hard origin/master
-              git pull origin master
-              if [ -f $TEMP_DIR/.env.backup ]; then
-                  cp $TEMP_DIR/.env.backup .env
-                  echo "♻️ .env restauré"
-              fi
+            cd $DEPLOY_DIR
+            [ -f .env ] && cp .env $TEMP_DIR/.env.backup
+            git reset --hard origin/master
+            git pull origin master
+            [ -f $TEMP_DIR/.env.backup ] && cp $TEMP_DIR/.env.backup .env
           fi
 
-          # Installer dépendances PHP
-          if [ -f composer.json ]; then
-              echo "📦 Installation des dépendances PHP..."
-              composer install --no-interaction --prefer-dist --optimize-autoloader
-          else
-              echo "❌ composer.json manquant"
-              exit 1
-          fi
+          # === Dépendances ===
+          composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
 
-          # Installer dépendances NPM
           if [ -f package.json ]; then
-              echo "📦 Installation des dépendances NPM..."
-              npm install
-              npm run prod || npm run production
-          else
-              echo "❌ package.json manquant"
-              exit 1
+            npm ci --only=production
+            npm run prod
           fi
 
-          # Cache Laravel
-          echo "⚡ Caches Laravel..."
-          php artisan config:cache || true
-          php artisan route:cache || true
-          php artisan view:cache || true
+          # === Laravel ===
+          php artisan migrate --force
+          php artisan config:cache
+          php artisan route:cache
+          php artisan view:cache
+          php artisan storage:link || true
 
-          # Permissions finales
-          echo "🔑 Ajustement des permissions..."
+          # === Permissions ===
           sudo chown -R www-data:www-data $DEPLOY_DIR
-          sudo chmod -R 775 $DEPLOY_DIR/storage $DEPLOY_DIR/bootstrap/cache
+          sudo find $DEPLOY_DIR/storage $DEPLOY_DIR/bootstrap/cache -type d -exec chmod 775 {} \;
+          sudo find $DEPLOY_DIR/storage $DEPLOY_DIR/bootstrap/cache -type f -exec chmod 664 {} \;
 
-          # Cleanup
+          # === Nettoyage ===
           rm -rf $TEMP_DIR
 
-          echo "✅ Déploiement terminé avec succès"
+          echo "✅ Déploiement terminé avec succès ! $(date)"
           EOF
