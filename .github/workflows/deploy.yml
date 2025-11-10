@@ -1,113 +1,67 @@
 name: Build and deploy Laravel app to VPS
-
 on:
   push:
     branches: [ "master" ]
   workflow_dispatch:
-
 env:
   PHP_VERSION: '8.x'
-
 permissions:
   contents: read
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up SSH
         uses: webfactory/ssh-agent@v0.5.3
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-
       - name: Deploy to VPS
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash<< 'EOF'
-          set -euo pipefail
-
-          DEPLOY_DIR=/var/www/html/Roulette_Lara
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+          sudo chown -R ${{ secrets.SSH_USER }}:${{ secrets.SSH_USER }} /var/www/html
+          sudo chmod -R 755 /var/www/html
+          if [ ! -d /var/www/html/Roulette_Lara ]; then
+              git clone git@github.com:DocCreeps/Roulette_Lara.git /var/www/html/Roulette_Lara
+          fi
+          cd /var/www/html/Roulette_Lara
           TEMP_DIR=/var/www/html/temp_backup
-
-          echo "🚀 Début du déploiement"
-
-          # Vérifier droits sudo
-          if ! sudo -n true 2>/dev/null; then
-              echo "❌ L'utilisateur $USER n'a pas les droits sudo sans mot de passe"
-              exit 1
-          else
-              echo "✅ Droits sudo OK"
-          fi
-
-          # Vérifier accès GitHub
-          if ! git ls-remote git@github.com:DocCreeps/Roulette_Lara.git &>/dev/null; then
-              echo "❌ Accès GitHub refusé. Vérifie la clé SSH sur le VPS"
-              exit 1
-          else
-              echo "✅ Accès GitHub OK"
-          fi
-
           mkdir -p $TEMP_DIR
-
-          # Clone ou pull
-          if [ ! -d $DEPLOY_DIR ]; then
-              echo "📦 Clonage du dépôt..."
-              git clone git@github.com:DocCreeps/Roulette_Lara.git $DEPLOY_DIR
-              cd $DEPLOY_DIR
+          if [ -f .env ]; then
+              cp .env $TEMP_DIR/.env.backup
+          fi
+          git reset --hard origin/master
+          git pull origin master
+          if [ -f $TEMP_DIR/.env.backup ]; then
+              cp $TEMP_DIR/.env.backup .env
+          fi
+          rm -rf $TEMP_DIR
+          if [ -f composer.json ]; then
+              composer install --no-interaction --prefer-dist --optimize-autoloader
+          else
+              echo "Le fichier composer.json n'existe pas."
+              exit 1
+          fi
+          if [ -f package.json ]; then
+              npm install
+              npm run prod
+          else
+              echo "Le fichier package.json n'existe pas."
+              exit 1
+          fi
+          if [ ! -f .env ]; then
               if [ -f .env.example ]; then
                   cp .env.example .env
                   php artisan key:generate
-                  echo "✅ .env créé depuis .env.example"
-              fi
-          else
-              echo "🔄 Mise à jour du dépôt..."
-              cd $DEPLOY_DIR
-              if [ -f .env ]; then
-                  cp .env $TEMP_DIR/.env.backup
-                  echo "💾 .env sauvegardé"
-              fi
-              git reset --hard origin/master
-              git pull origin master
-              if [ -f $TEMP_DIR/.env.backup ]; then
-                  cp $TEMP_DIR/.env.backup .env
-                  echo "♻️ .env restauré"
+              else
+                  echo "Le fichier .env.example n'existe pas."
+                  exit 1
               fi
           fi
-
-          # Installer dépendances PHP
-          if [ -f composer.json ]; then
-              echo "📦 Installation des dépendances PHP..."
-              composer install --no-interaction --prefer-dist --optimize-autoloader
-          else
-              echo "❌ composer.json manquant"
-              exit 1
-          fi
-
-          # Installer dépendances NPM
-          if [ -f package.json ]; then
-              echo "📦 Installation des dépendances NPM..."
-              npm install
-              npm run prod || npm run production
-          else
-              echo "❌ package.json manquant"
-              exit 1
-          fi
-
-          # Cache Laravel
-          echo "⚡ Caches Laravel..."
-          php artisan config:cache || true
-          php artisan route:cache || true
-          php artisan view:cache || true
-
-          # Permissions finales
-          echo "🔑 Ajustement des permissions..."
-          sudo chown -R www-data:www-data $DEPLOY_DIR
-          sudo chmod -R 775 $DEPLOY_DIR/storage $DEPLOY_DIR/bootstrap/cache
-
-          # Cleanup
-          rm -rf $TEMP_DIR
-
-          echo "✅ Déploiement terminé avec succès"
+          php artisan config:cache
+          php artisan route:cache
+          php artisan view:cache
+          npm run production
+          sudo chown -R www-data:www-data /var/www/html/Roulette_Lara
+          echo "Deployment successful"
           EOF
