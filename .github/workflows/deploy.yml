@@ -19,40 +19,47 @@ jobs:
       - name: Deploy to VPS
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash -s << 'EOF'
-          set -euo pipefail
-
           sudo chown -R ${{ secrets.SSH_USER }}:${{ secrets.SSH_USER }} /var/www/html
           sudo chmod -R 755 /var/www/html
-
+          if [ ! -d /var/www/html/Roulette_Lara ]; then
+              git clone git@github.com:DocCreeps/Roulette_Lara.git /var/www/html/Roulette_Lara
+          fi
           cd /var/www/html/Roulette_Lara
-
           TEMP_DIR=/var/www/html/temp_backup
           mkdir -p $TEMP_DIR
-          [ -f .env ] && cp .env $TEMP_DIR/.env.backup
-
-          git reset --hard origin/master
-          git clean -fdx
-          git pull origin master
-
-          [ -f $TEMP_DIR/.env.backup ] && cp $TEMP_DIR/.env.backup .env
-          rm -rf $TEMP_DIR
-
-          composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
-
-          if [ -f package.json ]; then
-            npm ci --only=production
-            npm run build
+          if [ -f .env ]; then
+              cp .env $TEMP_DIR/.env.backup
           fi
-
-          [ ! -f .env ] && cp .env.example .env && php artisan key:generate --force
-
-          php artisan migrate --force --no-interaction || true
-          php artisan config:cache --no-interaction
-          php artisan route:cache --no-interaction
-          php artisan view:cache --no-interaction
-
+          git reset --hard origin/master
+          git pull origin master
+          if [ -f $TEMP_DIR/.env.backup ]; then
+              cp $TEMP_DIR/.env.backup .env
+          fi
+          rm -rf $TEMP_DIR
+          if [ -f composer.json ]; then
+              composer install --no-interaction --prefer-dist --optimize-autoloader
+          else
+              echo "Le fichier composer.json n'existe pas."
+              exit 1
+          fi
+          if [ -f package.json ]; then
+              npm install
+              npm run build
+          else
+              echo "Le fichier package.json n'existe pas."
+              exit 1
+          fi
+          if [ ! -f .env ]; then
+              if [ -f .env.example ]; then
+                  cp .env.example .env
+                  php artisan key:generate
+              else
+                  echo "Le fichier .env.example n'existe pas."
+                  exit 1
+              fi
+          fi
+          php artisan optimize:cl
+          npm run build
           sudo chown -R www-data:www-data /var/www/html/Roulette_Lara
-          sudo chmod -R 775 storage bootstrap/cache
-
           echo "Deployment successful"
           EOF
