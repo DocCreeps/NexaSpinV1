@@ -34,7 +34,6 @@ jobs:
 
           # 📂 Droits temporaires pour l'utilisateur SSH
           echo "🔧 Correction des permissions temporaires..."
-          whoami
           sudo chown -R ${{ secrets.SSH_USER }}:${{ secrets.SSH_USER }} /var/www/html
           sudo chmod -R 755 /var/www/html
 

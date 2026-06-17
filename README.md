@@ -1,61 +1,293 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# NexaSpinV1 🎡
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+> Application Web de Roulette Interactive pour Tirages au Sort
 
-## About Laravel
+![Laravel](https://img.shields.io/badge/Laravel-12-red)
+![PHP](https://img.shields.io/badge/PHP-8.2+-blue)
+![Livewire](https://img.shields.io/badge/Livewire-3-purple)
+![TailwindCSS](https://img.shields.io/badge/TailwindCSS-4-06B6D4)
+![Vite](https://img.shields.io/badge/Vite-7-646CFF)
+![Pest](https://img.shields.io/badge/Tested_with-Pest-22C55E)
+![License](https://img.shields.io/badge/License-MIT-green)
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## 📌 À propos du projet
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+**NexaSpinV1** est une application web moderne permettant d'organiser des tirages au sort à travers deux systèmes de roulette distincts.
 
-## Learning Laravel
+Développée avec **Laravel 12**, **Livewire 3** et **Tailwind CSS 4**, elle offre une expérience utilisateur fluide, réactive et sans rechargement de page.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+> ⚡ Fonctionne sans base de données : les participants et les résultats sont stockés en session. Aucune configuration SQL n'est nécessaire.
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+---
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## 📸 Aperçu de l'application
 
-## Laravel Sponsors
+### 🏠 Sélection du mode
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+![Sélection du mode](docs/screenshots/home.png)
 
-### Premium Partners
+### 🍀 Roulette Classique
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+![Roulette Classique](docs/screenshots/classique.png)
 
-## Contributing
+### 🏆 Résultat Roulette Classique
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+![Modal gagnant](docs/screenshots/modal-gagnant.png)
 
-## Code of Conduct
+### 💀 Roulette par Élimination
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+![Roulette Élimination](docs/screenshots/elimination.png)
 
-## Security Vulnerabilities
+### 🏆 Résultat Roulette Élimination
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+![Gagnant Élimination](docs/screenshots/gagnant-elimination.png)
 
-## License
+---
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## 🎯 Cas d'utilisation
+
+- Concours et tombolas
+- Tirages au sort en présentiel ou en ligne
+- Sélection aléatoire de participants
+- Constitution d'équipes
+- Jeux événementiels
+- Processus d'élimination
+- Utilisation pédagogique en classe
+
+---
+
+## ✨ Fonctionnalités
+
+### 🎯 Deux Modes de Roulette
+
+| Mode | Description | Particularités |
+|--------|--------|--------|
+| 🍀 Roulette Classique | Tirage aléatoire d'un gagnant unique | Résultat immédiat |
+| 💀 Roulette par Élimination | Élimination progressive des participants | Historique complet jusqu'au gagnant |
+
+### 🎛 Fonctionnalités communes
+
+- ✅ Ajout de participants
+- ✅ Modification de participants
+- ✅ Suppression de participants
+- ✅ Validation des données
+- ✅ Animation de la roue
+- ✅ Notifications utilisateur
+- ✅ Historique des éliminations
+- ✅ Réinitialisation instantanée
+- ✅ Interface responsive
+- ✅ Compatible mobile, tablette et desktop
+
+---
+
+## 🚀 Installation
+
+### Prérequis
+
+- PHP ≥ 8.2
+- Composer ≥ 2.5
+- Node.js ≥ 18
+- Apache ou Nginx
+
+> ⚠️ Aucune base de données requise.
+
+### Installation
+
+```bash
+git clone https://github.com/DocCreeps/NexaSpinV1.git
+
+cd NexaSpinV1
+
+composer install
+
+npm install
+
+cp .env.example .env
+
+php artisan key:generate
+
+npm run dev
+
+php artisan serve
+```
+
+Application disponible sur :
+
+```text
+http://localhost:8000
+```
+
+Pour la production :
+
+```bash
+npm run build
+```
+
+---
+
+## 🎮 Utilisation
+
+### 1. Choisir un mode
+
+- Roulette Classique
+- Roulette par Élimination
+
+### 2. Ajouter les participants
+
+- Saisir un nom
+- Cliquer sur Ajouter
+- Modifier ou supprimer si nécessaire
+
+Minimum requis : **2 participants**
+
+### 3. Lancer la roulette
+
+- Cliquer sur **Lancer la roulette**
+- Attendre la fin de l'animation
+- Consulter le résultat
+
+### 4. Mode Élimination
+
+- Un participant est éliminé à chaque manche
+- L'ordre d'élimination est conservé
+- Le dernier participant restant est déclaré gagnant
+
+### 5. Réinitialiser
+
+Le bouton **Réinitialiser** restaure l'état initial de la roulette.
+
+---
+
+## 🧪 Tests
+
+Le projet utilise **Pest PHP** pour les tests automatisés.
+
+### Exécuter tous les tests
+
+```bash
+php artisan test
+```
+
+ou
+
+```bash
+./vendor/bin/pest
+```
+
+### Exécuter un test spécifique
+
+```bash
+php artisan test --filter="nom_du_test"
+```
+
+### Couverture actuelle
+
+Les tests couvrent notamment :
+
+- Gestion des participants
+- Validation des entrées
+- Logique métier des stratégies de roulette
+- Comportement des composants Livewire
+- Gestion des états de jeu
+
+---
+
+## 💡 Choix Techniques
+
+### Pourquoi Livewire ?
+
+- Réactivité sans framework JavaScript complexe
+- Intégration native avec Laravel
+- Maintenance simplifiée
+
+### Pourquoi les Sessions ?
+
+- Aucune base de données nécessaire
+- Déploiement simplifié
+- Rapidité de mise en œuvre
+
+### Pourquoi le Strategy Pattern ?
+
+- Séparation claire de la logique métier
+- Extensible pour de futurs modes de tirage
+- Respect du principe Open/Closed
+
+---
+
+## 🏗 Architecture Technique
+
+### Stack Technique
+
+| Composant | Technologie |
+|------------|------------|
+| Backend | Laravel 12 |
+| Composants Réactifs | Livewire 3 |
+| Frontend | Blade |
+| CSS | Tailwind CSS 4 |
+| Bundler | Vite 7 |
+| Tests | Pest PHP |
+| Langage | PHP 8.2+ |
+
+### Design Patterns
+
+- Strategy Pattern
+- Trait Composition
+- Event-Driven Architecture
+- MVC
+
+### Organisation du projet
+
+```text
+app/
+├── Livewire/
+├── Services/
+│   └── Roulette/
+├── Models/
+└── Providers/
+
+resources/
+├── views/
+└── css/
+
+routes/
+└── web.php
+
+tests/
+├── Feature/
+└── Unit/
+```
+
+---
+
+## 📊 Routes
+
+| Méthode | URL | Description |
+|----------|----------|----------|
+| GET | / | Sélection du mode |
+| GET | /roulette/classic | Roulette classique |
+| GET | /roulette/elimination | Roulette par élimination |
+
+---
+
+## 📚 Ressources
+
+- Laravel Documentation
+- Livewire Documentation
+- Tailwind CSS Documentation
+- Vite Documentation
+- Pest PHP Documentation
+
+---
+
+
+## 👨‍💻 Auteur
+
+Développé avec ❤️ par **DocCreeps**
+
+GitHub : https://github.com/DocCreeps
+
+---
+
+**NexaSpinV1** — Une application moderne de tirage au sort construite avec Laravel, Livewire et Tailwind CSS.
